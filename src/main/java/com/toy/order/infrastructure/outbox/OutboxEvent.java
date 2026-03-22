@@ -38,4 +38,8 @@ public class OutboxEvent {
         this.status = OutboxStatus.PUBLISHED;
         this.publishedAt = LocalDateTime.now();
     }
+
+    public void markFailed() {
+        this.status = OutboxStatus.FAILED;
+    }
 }
