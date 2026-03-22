@@ -8,7 +8,7 @@ import com.toy.order.infrastructure.kafka.event.InventoryDeductedEvent;
 import com.toy.order.infrastructure.kafka.event.InventoryInsufficientEvent;
 import com.toy.order.infrastructure.kafka.event.OrderCancelledEvent;
 import com.toy.order.infrastructure.kafka.event.OrderCreatedEvent;
-import com.toy.order.infrastructure.kafka.producer.OrderEventProducer;
+import com.toy.order.infrastructure.outbox.OutboxEventSaver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ import java.util.UUID;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final OrderEventProducer eventProducer;
+    private final OutboxEventSaver outboxEventSaver;
 
     @Transactional
     public Order placeOrder(String productId, int quantity) {
@@ -31,7 +31,7 @@ public class OrderService {
         Order order = Order.create(orderId, new ProductId(productId), quantity);
         Order saved = orderRepository.save(order);
 
-        eventProducer.publishOrderCreated(new OrderCreatedEvent(
+        outboxEventSaver.save("order.created", orderId.value(), new OrderCreatedEvent(
                 orderId.value(),
                 productId,
                 quantity,
@@ -54,7 +54,7 @@ public class OrderService {
         Order cancelled = order.cancel();
         Order saved = orderRepository.save(cancelled);
 
-        eventProducer.publishOrderCancelled(new OrderCancelledEvent(
+        outboxEventSaver.save("order.cancelled", orderId, new OrderCancelledEvent(
                 orderId,
                 order.getProductId().value(),
                 order.getQuantity(),
