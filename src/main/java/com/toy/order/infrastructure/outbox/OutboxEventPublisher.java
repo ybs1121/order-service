@@ -2,10 +2,13 @@ package com.toy.order.infrastructure.outbox;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  * Outbox 이벤트 1건을 독립 트랜잭션으로 Kafka에 발행한다.
@@ -42,7 +45,11 @@ public class OutboxEventPublisher {
             event = outboxJpaRepository.findById(outboxEventId)
                     .orElseThrow(() -> new IllegalStateException("OutboxEvent not found: " + outboxEventId));
 
-            kafkaTemplate.send(event.getTopic(), event.getAggregateId(), event.getPayload());
+            // outbox UUID를 X-Event-Id 헤더로 전달 → 컨슈머가 멱등성 키로 사용
+            ProducerRecord<String, String> record = new ProducerRecord<>(
+                    event.getTopic(), event.getAggregateId(), event.getPayload());
+            record.headers().add("X-Event-Id", event.getId().getBytes(StandardCharsets.UTF_8));
+            kafkaTemplate.send(record);
             event.markPublished();
             log.debug("Outbox event published: id={}, topic={}", event.getId(), event.getTopic());
         } catch (Exception e) {

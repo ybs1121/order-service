@@ -8,6 +8,8 @@ import com.toy.order.infrastructure.kafka.event.InventoryInsufficientEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -19,17 +21,21 @@ public class InventoryEventConsumer {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = "inventory.deducted", groupId = "order-consumer-group")
-    public void handleInventoryDeducted(String message) {
+    public void handleInventoryDeducted(
+            @Payload String message,
+            @Header("X-Event-Id") String eventId) {
         InventoryDeductedEvent event = fromJson(message, InventoryDeductedEvent.class);
-        log.info("Consumed InventoryDeductedEvent: orderId={}", event.orderId());
-        orderService.handleInventoryDeducted(event);
+        log.info("Consumed InventoryDeductedEvent: orderId={}, eventId={}", event.orderId(), eventId);
+        orderService.handleInventoryDeducted(event, eventId);
     }
 
     @KafkaListener(topics = "inventory.insufficient", groupId = "order-consumer-group")
-    public void handleInventoryInsufficient(String message) {
+    public void handleInventoryInsufficient(
+            @Payload String message,
+            @Header("X-Event-Id") String eventId) {
         InventoryInsufficientEvent event = fromJson(message, InventoryInsufficientEvent.class);
-        log.warn("Consumed InventoryInsufficientEvent: orderId={}", event.orderId());
-        orderService.handleInventoryInsufficient(event);
+        log.warn("Consumed InventoryInsufficientEvent: orderId={}, eventId={}", event.orderId(), eventId);
+        orderService.handleInventoryInsufficient(event, eventId);
     }
 
     private <T> T fromJson(String message, Class<T> type) {
